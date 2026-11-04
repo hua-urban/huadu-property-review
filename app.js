@@ -980,5 +980,8 @@
       renderLogin("登入已過期，請重新登入。");
     }
   }
-  boot();
+  boot().catch((error) => {
+    $("#app").innerHTML = `<main id="main" class="loading-page"><div class="brand-mark">華</div><h1 style="font-size:22px">目前無法開啟平台</h1><p class="notice error">${esc(error.message || "請確認瀏覽器允許儲存資料，或改用一般瀏覽模式後重試。")}</p><button class="btn" id="retry-start">重新載入</button></main>`;
+    $("#retry-start").onclick = () => location.reload();
+  });
 })();
