@@ -26,14 +26,15 @@
   };
   const icons = { 整合: "▦", 出售: "⌂", 出租: "▤", 貸款活化: "↗" };
   const reviewAdapter = window.HUADU_REVIEW_ADAPTER;
+  const publicAdapter = window.HUADU_PUBLIC_ADAPTER;
   const adminEntry =
-    document.body.dataset.adminEntry === "true" ||
-    new URLSearchParams(location.search).get("admin") === "1";
+    !publicAdapter && (document.body.dataset.adminEntry === "true" ||
+    new URLSearchParams(location.search).get("admin") === "1");
   const sessionKey = reviewAdapter
     ? "huaduIntakeReviewV2"
     : adminEntry
       ? "huaduLeadershipSessionV2"
-      : "huaduIntakeSessionV2";
+      : publicAdapter ? "huaduIntakeHttpV3" : "huaduIntakeSessionV2";
   const gas =
     typeof google !== "undefined" && google.script && google.script.run;
   const state = {
@@ -43,7 +44,7 @@
     cases: [],
     view: "overview",
     loginMode: "member",
-    environment: reviewAdapter ? "review" : gas ? "google" : "local",
+    environment: reviewAdapter ? "review" : publicAdapter ? "google-public" : gas ? "google" : "local",
     query: "",
     category: "",
     status: "",
@@ -79,6 +80,7 @@
     const request = { action, payload, token: state.token };
     let result;
     if (reviewAdapter) result = await reviewAdapter.rpc(request);
+    else if (publicAdapter) result = await publicAdapter.rpc(request);
     else if (gas)
       result = await new Promise((resolve, reject) =>
         google.script.run
@@ -107,13 +109,15 @@
         state.token = "";
         state.user = null;
         sessionStorage.removeItem(sessionKey);
-        renderLogin();
+        if (adminEntry) renderLogin();
       }
-      throw new Error(result?.error?.message || "操作未完成，請稍後再試。");
+      const failure = new Error(result?.error?.message || "操作未完成，請稍後再試。");
+      failure.code = result?.error?.code;
+      throw failure;
     }
     return result.data;
   }
-  const brandIcon = reviewAdapter ? "brand/icon-512.png" : "https://hua-urban.com/property-platform/brand/icon-512.png";
+  const brandIcon = reviewAdapter || publicAdapter ? "brand/icon-512.png" : "https://hua-urban.com/property-platform/brand/icon-512.png";
   function brandMark() { return `<img class="brand-mark brand-icon" src="${brandIcon}" alt="都更">`; }
   function brand() {
     return `<div class="brand">${brandMark()}<div><strong>華都更</strong><small>PROPERTY COLLABORATION</small></div></div>`;
@@ -343,7 +347,7 @@
   function openConfirm(p) {
     openModal(
       "送出前，確認一下",
-      `<div class="eyebrow">REQUEST PREVIEW</div><h2 class="detail-title">${esc(p.title)}</h2><div class="row wrap">${p.categories.map((c) => `<span class="tag wine">${esc(c)}</span>`).join("")}</div><dl class="detail-meta"><div><dt>標的地區</dt><dd>${esc(p.city + " " + p.district)}</dd></div><div><dt>圖片</dt><dd>${state.files.length} 張</dd></div></dl><h3>希望會內協助</h3><p class="summary-text">${esc(p.helpNeeded)}</p><p class="notice">資料只供授權領導團隊媒合與引薦，不對一般會員公開。</p><div class="row wrap"><button class="btn" data-action="close-modal">返回修改</button><button class="btn primary" id="confirm-submit">確認送出 →</button></div>`,
+      `<div class="eyebrow">登錄資料確認</div><h2 class="detail-title">${esc(p.title)}</h2><div class="row wrap">${p.categories.map((c) => `<span class="tag wine">${esc(c)}</span>`).join("")}</div><dl class="detail-meta"><div><dt>標的地區</dt><dd>${esc(p.city + " " + p.district)}</dd></div><div><dt>圖片</dt><dd>${state.files.length} 張</dd></div><div><dt>填報人</dt><dd>${esc(p.submitterName)}</dd></div><div><dt>確認信 Email</dt><dd>${esc(p.submitterEmail)}</dd></div><div><dt>手機</dt><dd>${esc(p.submitterPhone || "未提供")}</dd></div></dl><h3>希望會內協助</h3><p class="summary-text">${esc(p.helpNeeded)}</p><p class="notice">資料只供授權領導團隊媒合與引薦，不對一般會員公開。</p><div class="row wrap"><button class="btn" data-action="close-modal">返回修改</button><button class="btn primary" id="confirm-submit">確認送出 →</button></div>`,
     );
     $("#confirm-submit").onclick = async () => {
       closeModal();
@@ -1047,7 +1051,7 @@
       await renderReceipt(rawReceipt);
       return;
     }
-    if (!gas && !reviewAdapter) {
+    if (!gas && !reviewAdapter && !publicAdapter) {
       try {
         const h = await fetch("/api/health").then((r) => r.json());
         state.environment = h.data?.environment || "local";
@@ -1088,9 +1092,21 @@
       sessionStorage.removeItem(sessionKey);
       if (adminEntry) {
         renderLogin(error.message);
+      } else if (["UNAUTHORIZED", "SESSION_EXPIRED", "AUTH_REQUIRED"].includes(error.code)) {
+        const started = await api("startSubmission", {});
+        state.token = started.token;
+        sessionStorage.setItem(sessionKey, started.token);
+        const fresh = await api("bootstrap");
+        state.user = { ...started, ...fresh.user };
+        state.members = fresh.members || [];
+        await navigate("new");
       } else throw error;
     }
   }
+  window.addEventListener("hashchange", () => {
+    const token = new URLSearchParams(location.hash.slice(1)).get("receipt");
+    if (/^[A-Za-z0-9_-]{32,128}$/.test(token || "")) renderReceipt(token);
+  });
   boot().catch((error) => {
     $("#app").innerHTML =
       `<main id="main" class="loading-page">${brandMark()}<h1 style="font-size:22px">目前無法開啟平台</h1><p class="notice error">${esc(error.message || "請確認瀏覽器允許儲存資料，或改用一般瀏覽模式後重試。")}</p><button class="btn" id="retry-start">重新載入</button></main>`;
