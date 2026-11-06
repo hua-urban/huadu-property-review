@@ -1512,3 +1512,100 @@ td strong {
   color: #624819;
   border-color: #d7be8c;
 }
+
+.intake-shell {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.intake-header {
+  max-width: 1140px;
+  margin: auto;
+  padding: 24px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.intake-header .brand small {
+  font-size: 9px;
+}
+.intake-content {
+  max-width: 1140px;
+  margin: auto;
+  padding: 12px 30px 40px;
+}
+.intake-content .page-head h1 {
+  font-size: 30px;
+}
+.intake-content .page-head .eyebrow:empty {
+  display: none;
+}
+.intake-footer {
+  text-align: center;
+  padding: 20px 24px 30px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.intake-content .form-section {
+  padding: 25px 28px;
+}
+.success-panel .detail-meta {
+  text-align: left;
+}
+.success-panel .detail-meta dd {
+  overflow-wrap: anywhere;
+}
+.receipt-detail {
+  max-width: 820px;
+  margin: auto;
+}
+.leadership-login {
+  max-width: 540px;
+  margin: 60px auto;
+  padding: 0 22px;
+}
+.leadership-login-card {
+  margin-top: 25px;
+  padding: 35px;
+}
+.leadership-login-card .brand {
+  margin-bottom: 30px;
+}
+.leadership-login-card h1 {
+  font-family: "Noto Serif TC", serif;
+  font-size: 26px;
+}
+.leadership-login-card p {
+  font-size: 14px;
+  color: var(--muted);
+}
+.leadership-login-card .notice {
+  margin-bottom: 20px;
+}
+@media (max-width: 760px) {
+  .intake-header {
+    padding: 20px 18px;
+  }
+  .intake-header .brand strong {
+    font-size: 17px;
+  }
+  .intake-header .brand small {
+    font-size: 8px;
+  }
+  .intake-content {
+    padding: 8px 16px 25px;
+  }
+  .intake-content .form-section {
+    padding: 22px 18px;
+  }
+  .intake-content .page-head h1 {
+    font-size: 26px;
+  }
+  .leadership-login {
+    margin-top: 35px;
+  }
+  .leadership-login-card {
+    padding: 25px;
+  }
+}

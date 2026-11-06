@@ -17,18 +17,23 @@
   const categories = ["整合", "出售", "出租", "貸款活化"];
   const statusNames = {
     draft: "尚未送審",
-    pending: "待審核",
+    pending: "待評估",
     needs_info: "待補充",
-    published: "已發布",
+    published: "已評估",
     withdrawn: "已撤回",
     expired: "已失效",
     deleted: "已封存",
   };
   const icons = { 整合: "▦", 出售: "⌂", 出租: "▤", 貸款活化: "↗" };
   const reviewAdapter = window.HUADU_REVIEW_ADAPTER;
+  const adminEntry =
+    document.body.dataset.adminEntry === "true" ||
+    new URLSearchParams(location.search).get("admin") === "1";
   const sessionKey = reviewAdapter
-    ? "huaduPropertyReviewSession"
-    : "huaduSession";
+    ? "huaduIntakeReviewV2"
+    : adminEntry
+      ? "huaduLeadershipSessionV2"
+      : "huaduIntakeSessionV2";
   const gas =
     typeof google !== "undefined" && google.script && google.script.run;
   const state = {
@@ -112,50 +117,38 @@
     return '<div class="brand"><span class="brand-mark">華</span><div><strong>華都更</strong><small>PROPERTY COLLABORATION</small></div></div>';
   }
   function renderLogin(error = "") {
+    document.title = "領導團隊登入｜華都更";
+    const local = state.environment === "local" && !reviewAdapter;
     $("#app").innerHTML =
-      `<main id="main" class="login"><section class="login-story">${brand()}<div class="login-copy"><div class="eyebrow">一起，讓資源找到機會</div><h1>每一份需求，<br>都可能是協作的開始。</h1><div class="line"></div><p>把夥伴的房屋、土地與資金需求放在一起，<br>讓會內的專業，接住下一個機會。</p><div class="row wrap">${categories.map((c) => `<span class="tag wine">${c}</span>`).join("")}</div></div><footer>BNI 華都更分會　｜　會內專屬協作空間</footer></section><section class="login-panel"><div class="login-card"><div class="eyebrow">HUADU MEMBERS ONLY</div><h2>歡迎回到協作平台</h2><p>從一筆需求開始，讓合適的夥伴接上線。</p><div class="login-tabs" role="tablist" aria-label="登入身分"><button type="button" role="tab" aria-selected="${state.loginMode === "member"}" class="${state.loginMode === "member" ? "active" : ""}" data-login-mode="member">夥伴登入</button><button type="button" role="tab" aria-selected="${state.loginMode === "admin"}" class="${state.loginMode === "admin" ? "active" : ""}" data-login-mode="admin">管理者登入</button></div><form id="login-form">${state.loginMode === "admin" ? '<div class="field"><label for="username">管理帳號</label><input id="username" name="username" autocomplete="username" required placeholder="輸入您的管理帳號"></div>' : ""}<div class="field"><label for="password">${state.loginMode === "member" ? "會內通行密碼" : "登入密碼"}</label><input id="password" name="password" type="password" autocomplete="${state.loginMode === "member" ? "off" : "current-password"}" required placeholder="${state.loginMode === "member" ? "請輸入會內共用密碼" : "請輸入個人管理密碼"}"></div><div id="login-error" ${error ? "" : "hidden"} class="notice error" role="alert">${esc(error)}</div><button class="btn primary" type="submit">進入${state.loginMode === "member" ? "協作平台" : "管理後臺"} <span aria-hidden="true">→</span></button></form><p class="hint" style="margin-top:17px">${state.loginMode === "member" ? "僅供華都更會內使用。通行密碼請洽資訊組。" : "九長與資訊組使用個別帳號，審核及異動均留有紀錄。"}</p>${state.environment === "local" ? '<div class="demo-info"><strong>本機試用環境 · 不連動正式資料</strong><br>夥伴密碼：<code>huadu-demo</code><br>九長：<code>reviewer</code> ／ <code>huadu-review-demo</code><br>資訊組：<code>info</code> ／ <code>huadu-info-demo</code><br>名冊為虛構試用名冊；請使用測試資料。</div>' : ""}<a class="login-back" href="https://hua-urban.com/">← 回華都更首頁</a></div></section></main>`;
+      `<main id="main" class="leadership-login"><a href="https://hua-urban.com/admin/" class="hint">← 返回華都更管理中心</a><div class="panel leadership-login-card">${brand()}<h1>需求媒合後臺</h1><p>董顧、九長及授權領導團隊專用。</p>${error ? `<div class="notice error" role="alert">${esc(error)}</div>` : ""}${local ? `<form id="login-form"><input type="hidden" name="mode" value="admin">${field("username", "本機測試帳號", { required: true })}${field("password", "本機測試密碼", { type: "password", required: true })}<button class="btn primary" type="submit">登入本機測試後臺</button><p class="hint">僅本機：reviewer／huadu-review-demo，或 info／huadu-info-demo。</p></form>` : `<button class="btn primary" data-action="google-login">使用 Google 帳戶登入</button><p class="hint">僅限已授權帳戶。請在 Google 畫面選擇您的帳戶。</p>`}</div></main>`;
   }
   function navigation() {
-    const reviewNav = reviewAdapter
-      ? `<div class="nav-title">審閱身分 · 可自由切換</div>${[
-          ["member", "夥伴視角"],
-          ["reviewer", "九長視角"],
-          ["info", "資訊組視角"],
-        ]
-          .map(
-            ([role, label]) =>
-              `<button class="nav-link ${state.user?.role === role ? "active" : ""}" data-demo-role="${role}"><span class="nav-icon">◉</span>${label}</button>`,
-          )
-          .join(
-            "",
-          )}<button class="nav-link" data-action="reset-demo"><span class="nav-icon">↺</span>重置示範資料</button>`
-      : "";
-    return `${reviewNav}<div class="nav-title">協作空間</div>${[
-      ["overview", "◫", "協作總覽"],
-      ["cases", "▦", "會內案件"],
-      ["new", "＋", "提出需求"],
+    return `<div class="nav-title">領導團隊</div>${[
+      ["review", "☷", "需求與媒合"],
+      ["new", "＋", "代為登錄需求"],
     ]
       .map(
-        ([v, i, l]) =>
-          `<button class="nav-link ${state.view === v ? "active" : ""}" data-view="${v}"><span class="nav-icon" aria-hidden="true">${i}</span>${l}</button>`,
+        ([v, i, label]) =>
+          `<button class="nav-link ${state.view === v ? "active" : ""}" data-view="${v}"><span class="nav-icon">${i}</span>${label}</button>`,
       )
-      .join(
-        "",
-      )}${staff() ? `<div class="nav-title">管理工作臺</div><button class="nav-link ${state.view === "review" ? "active" : ""}" data-view="review"><span class="nav-icon">☷</span>案件審核與盤點</button>${info() ? `<button class="nav-link ${state.view === "users" ? "active" : ""}" data-view="users"><span class="nav-icon">♙</span>管理帳號</button>` : ""}` : ""}`;
+      .join("")}`;
   }
   function shell(content) {
-    const label =
-      {
-        overview: "協作總覽",
-        cases: "會內案件",
-        new: "提出需求",
-        review: "案件審核與盤點",
-        users: "管理帳號",
-        success: "送出完成",
-      }[state.view] || "協作平台";
+    const notice = reviewAdapter
+      ? '<div class="notice review-notice">登錄頁示範：資料只保存在此瀏覽器，不會寄出確認信。請勿填入真實個資。</div>'
+      : "";
+    if (!staff()) {
+      $("#app").innerHTML =
+        `<div class="intake-shell"><header class="intake-header">${brand()}<a class="btn small subtle" href="https://hua-urban.com/">回華都更首頁</a></header><main id="main" class="intake-content" tabindex="-1">${notice}${content}</main><footer class="intake-footer">華都更・房地產需求登錄　｜　登錄內容僅供授權領導團隊協助媒合與引薦。</footer></div>`;
+      document.title =
+        state.view === "receipt"
+          ? "需求登錄資料｜華都更"
+          : "房地產需求登錄｜華都更";
+      return;
+    }
     $("#app").innerHTML =
-      `<div class="shell"><aside class="sidebar" aria-label="主要導覽">${brand()}<nav>${navigation()}</nav><div class="sidebar-bottom"><p class="sidebar-note">讓需求被看見，<br>讓專業有機會同行。</p><a class="nav-link" href="https://hua-urban.com/admin/" target="_blank" rel="noopener"><span class="nav-icon">↗</span>華都更管理中心</a><button class="nav-link" data-action="logout"><span class="nav-icon">⇥</span>登出平台</button></div></aside><div class="main-wrap"><header class="topbar"><button class="mobile-menu" aria-label="開啟或關閉選單" aria-expanded="false" data-action="menu">☰</button><div class="breadcrumb">華都更 <span>／　房地產協作平台</span></div><div class="account">${state.environment === "local" ? '<span class="tag gold">本機試用</span>' : reviewAdapter ? '<span class="tag gold">公開審閱</span>' : ""}<span class="tag">${reviewAdapter?"虛構資料":"僅限會內"}</span><span class="avatar">${staff() ? "管" : "華"}</span><span>${esc(state.user?.displayName || roleName(state.user?.role))}</span></div></header><main id="main" class="content" tabindex="-1">${reviewAdapter ? '<div class="notice review-notice"><strong>公開審閱版</strong>　以下案件及會員皆為虛構。操作只保存在此瀏覽器，不會送至正式系統；請勿填入真實個資。可從選單切換夥伴、九長與資訊組視角。</div>' : ""}${content}<footer class="page-footer"><span>華都更・房地產協作平台</span><span>會內協作資料，請依授權使用。<br>v0.1.0 · ${esc(roleName(state.user?.role))}</span></footer></main></div></div>`;
-    document.title = `${label}｜華都更房地產協作平台`;
+      `<div class="shell"><aside class="sidebar" aria-label="主要導覽">${brand()}<nav>${navigation()}</nav><div class="sidebar-bottom"><a class="nav-link" href="https://hua-urban.com/admin/">← 管理中心</a><button class="nav-link" data-action="logout">登出</button></div></aside><div class="main-wrap"><header class="topbar"><button class="mobile-menu" aria-label="開啟或關閉選單" aria-expanded="false" data-action="menu">☰</button><div class="breadcrumb">華都更 <span>／　需求媒合後臺</span></div><div class="account"><span class="tag">領導團隊專用</span><span>${esc(state.user?.displayName || "已授權 Google 帳戶")}</span></div></header><main id="main" class="content" tabindex="-1">${content}<footer class="page-footer"><span>華都更・需求媒合後臺</span><span>v0.2.0</span></footer></main></div></div>`;
+    document.title = "需求媒合後臺｜華都更";
   }
   const pageHead = (eye, title, desc, actions = "") =>
     `<div class="page-head"><div><div class="eyebrow">${eye}</div><h1>${title}</h1><p>${desc}</p></div>${actions}</div>`;
@@ -186,7 +179,7 @@
     }</div>`;
   }
   function empty(
-    title = "目前還沒有已發布案件",
+    title = "目前還沒有已評估案件",
     text = "夥伴提出需求後，由九長審核發布。第一筆協作，也許就從您開始。",
   ) {
     return `<div class="empty"><div class="empty-symbol">⌂</div><h3>${title}</h3><p>${text}</p><button class="btn primary" data-view="new">＋ 提出一筆需求</button></div>`;
@@ -197,7 +190,7 @@
       : empty(
           state.query || state.category
             ? "沒有符合條件的案件"
-            : "目前還沒有已發布案件",
+            : "目前還沒有已評估案件",
           state.query || state.category
             ? "試試其他地區、關鍵字，或切換需求分類。"
             : undefined,
@@ -205,7 +198,7 @@
   }
   function stats() {
     const published = state.cases.filter((c) => c.status === "published");
-    return `<div class="stats">${categories.map((c) => `<div class="stat"><div class="stat-label">${c}<span class="stat-icon">${icons[c]}</span></div><div class="stat-number">${published.filter((x) => x.categories?.includes(c)).length}<small style="font-size:12px;font-weight:400;margin-left:6px;color:var(--muted)">件</small></div><div class="stat-foot">已發布的協作需求</div></div>`).join("")}</div>`;
+    return `<div class="stats">${categories.map((c) => `<div class="stat"><div class="stat-label">${c}<span class="stat-icon">${icons[c]}</span></div><div class="stat-number">${published.filter((x) => x.categories?.includes(c)).length}<small style="font-size:12px;font-weight:400;margin-left:6px;color:var(--muted)">件</small></div><div class="stat-foot">已評估的協作需求</div></div>`).join("")}</div>`;
   }
   function renderOverview() {
     shell(
@@ -230,12 +223,12 @@
   }
   function caseResults() {
     const list = filteredCases().filter((c) => c.status === "published");
-    return `<p class="result-count">共 ${list.length} 件已發布案件${state.category ? " · " + esc(state.category) : ""}</p>${cards(list)}`;
+    return `<p class="result-count">共 ${list.length} 件已評估案件${state.category ? " · " + esc(state.category) : ""}</p>${cards(list)}`;
   }
   function renderReview() {
     const list = filteredCases();
     shell(
-      `${pageHead("REVIEW WORKSPACE", "案件審核與盤點", "任一位九長通過即可發布。修改、撤回及失效由資訊組處理。", '<button class="btn" data-action="export">↓ 下載清單</button>')}<div class="panel">${filterbar(true)}<div id="review-results">${reviewResults(list)}</div></div>`,
+      `${pageHead("REVIEW WORKSPACE", "需求與媒合", "僅供授權領導團隊協助媒合與引薦。", '<button class="btn" data-action="export">↓ 下載清單</button>')}<div class="panel">${filterbar(true)}<div id="review-results">${reviewResults(list)}</div></div>`,
     );
   }
   function reviewResults(list = filteredCases()) {
@@ -258,7 +251,7 @@
     state.editing = edit;
     const v = (key) => edit?.[key] || "";
     shell(
-      `${pageHead(edit ? "UPDATE REQUEST" : "SUBMIT A REQUEST", edit ? "修改案件" : "提出一筆需求", edit ? "重要內容修改後，案件將重新進入待審核。" : "不必準備得很完整。先說明標的與需求，讓會內一起盤點。")}<form id="case-form"><div class="form-layout"><div><section class="form-section"><h2><span>01</span>提報與聯絡</h2><p class="section-desc">請留下後續可聯繫的窗口。共用密碼不代表個人身分驗證。</p><div class="form-grid">${field("memberId", "提報會員", { required: true, value: v("memberId"), options: state.members.map((m) => ({ value: m.memberId, label: `${m.memberNo || ""} ${m.name}` })) })}${field("contact", "聯絡方式", { required: true, value: v("contact"), placeholder: "電話、Email 或會內可聯繫方式" })}<div class="field span-2"><label class="checkbox-line"><input type="checkbox" name="onBehalf" id="onBehalf" ${edit?.onBehalf ? "checked" : ""}>我代其他人提出這筆需求</label></div>${field("relationship", "與標的的關係", { value: v("relationship"), placeholder: "例如：本人持有、受託處理、親友轉介", hint: "代他人提報時，請說明您與標的的關係。", span: true })}</div></section><section class="form-section"><h2><span>02</span>標的與需求</h2><p class="section-desc">一個標的一筆資料，可同時選擇多種需求。</p><div class="form-grid">${field("title", "案件名稱", { required: true, value: v("title"), placeholder: "例如：大安區老屋整合需求", span: true })}${field("propertyType", "標的類型", { required: true, value: v("propertyType"), options: ["房屋", "土地", "其他"] })}${field("city", "縣市", { required: true, value: v("city"), options: ["臺北市", "新北市", "桃園市", "新竹市", "新竹縣", "苗栗縣", "臺中市", "彰化縣", "南投縣", "雲林縣", "嘉義市", "嘉義縣", "臺南市", "高雄市", "屏東縣", "基隆市", "宜蘭縣", "花蓮縣", "臺東縣", "澎湖縣", "金門縣", "連江縣"] })}${field("district", "行政區", { required: true, value: v("district"), placeholder: "例如：大安區" })}${field("location", "詳細位置（選填）", { value: v("location"), placeholder: "路段、門牌或地號", hint: "請只提供適合會內分享的資訊。" })}<div class="field span-2"><label>需要什麼協助？<span class="required">＊</span><span class="hint">　可複選</span></label><div class="choice-grid">${categories.map((c) => `<label class="choice"><span class="choice-icon" aria-hidden="true">${icons[c]}</span>${c}<input type="checkbox" name="categories" value="${c}" ${edit?.categories?.includes(c) ? "checked" : ""}></label>`).join("")}</div></div>${field("description", "標的現況與需求說明", { required: true, value: v("description"), textarea: true, span: true, placeholder: "目前狀況如何？有哪些已知條件或需要處理的事情？" })}${field("helpNeeded", "希望會內協助什麼？", { required: true, value: v("helpNeeded"), textarea: true, span: true, placeholder: "例如：尋找可協助整合的夥伴、介紹出租窗口、討論貸款活化方向。" })}${field("summary", "會內分享摘要（選填）", { value: v("summary"), textarea: true, span: true, placeholder: "用幾句話讓夥伴快速了解需求。九長會在發布前確認摘要。" })}</div></section>${edit ? "" : `<section class="form-section"><h2><span>03</span>相關圖片 <small class="muted" style="font-weight:400;font-size:12px">選填</small></h2><p class="section-desc">物件照片或位置示意圖，能讓夥伴更快了解情況。</p><label class="upload-zone" for="images"><span style="font-size:27px;color:var(--wine)">↑</span><strong>選擇圖片，或將檔案拖曳到這裡</strong><p class="hint">JPG、PNG · 每張最多 25MB · 每案最多 15 張</p><input id="images" type="file" accept="image/jpeg,image/png" multiple></label><div id="image-previews" class="image-previews"></div></section>`}<section class="form-section"><label class="checkbox-line"><input type="checkbox" id="shareConsent" name="shareConsent" required ${edit ? "checked" : ""}>我確認有權提供上述資料，並了解案件經審核發布後，會內會員可以查看及下載核准的完整資料與原圖。</label>${edit ? field("reason", "修改原因", { required: true, textarea: true }) : ""}<div id="form-error" class="notice error" role="alert" hidden></div><div id="form-progress" class="form-progress" role="status"></div></section><div class="form-actions"><span class="hint">${edit ? "資訊組修改會留下處理紀錄。" : "送出後由九長審核；需要修改或撤回，請洽資訊組。"}</span><button class="btn primary" id="submit-case" type="submit">${edit ? "儲存並重新送審" : "預覽與送出"} →</button></div></div><aside class="form-aside"><div class="panel"><h3>讓協作更容易開始</h3><ul><li>說明最希望解決的一件事。</li><li>不知道的細節可以後續補充。</li><li>圖片選填，沒有照片也能提報。</li><li>請先確認代提報與圖片分享的授權。</li></ul><div class="divider"></div><h3>送出之後</h3><p class="hint">九長會先確認內容，再開放會內查看。案件資訊不代表產權、估價或核貸認證。</p></div></aside></div></form>`,
+      `${pageHead("", edit ? "修改需求" : "房地產需求登錄", edit ? "修改後重新交由領導團隊評估。" : "填寫物件與需求，由董顧、九長及授權領導團隊協助媒合、引薦。")}<form id="case-form"><div class="form-layout"><div><section class="form-section"><h2><span>01</span>物件與需求</h2><p class="section-desc">一個標的一筆資料，需求可複選。</p><div class="form-grid">${field("title", "物件名稱", { required: true, value: v("title"), placeholder: "例如：大安區老屋整合需求", span: true })}${field("propertyType", "標的類型", { required: true, value: v("propertyType"), options: ["房屋", "土地", "其他"] })}${field("city", "縣市", { required: true, value: v("city"), options: ["臺北市", "新北市", "桃園市", "新竹市", "新竹縣", "苗栗縣", "臺中市", "彰化縣", "南投縣", "雲林縣", "嘉義市", "嘉義縣", "臺南市", "高雄市", "屏東縣", "基隆市", "宜蘭縣", "花蓮縣", "臺東縣", "澎湖縣", "金門縣", "連江縣"] })}${field("district", "行政區", { required: true, value: v("district"), placeholder: "例如：大安區" })}${field("location", "詳細位置（選填）", { value: v("location"), placeholder: "路段、門牌或地號" })}<div class="field span-2"><label>需求類別<span class="required">＊</span><span class="hint">　可複選</span></label><div class="choice-grid">${categories.map((c) => `<label class="choice"><span class="choice-icon" aria-hidden="true">${icons[c]}</span>${c}<input type="checkbox" name="categories" value="${c}" ${edit?.categories?.includes(c) ? "checked" : ""}></label>`).join("")}</div></div>${field("description", "標的現況與需求說明", { required: true, value: v("description"), textarea: true, span: true, placeholder: "請說明目前情況、已知條件與需要處理的事情。" })}${field("helpNeeded", "希望會內協助什麼？", { required: true, value: v("helpNeeded"), textarea: true, span: true, placeholder: "例如：尋找整合夥伴、介紹租售窗口、討論貸款活化方向。" })}</div></section>${edit ? "" : `<section class="form-section"><h2><span>02</span>相關圖片 <small class="muted" style="font-size:12px;font-weight:400">選填</small></h2><p class="section-desc">JPG、PNG，每張最多25MB，每案最多15張。</p><label class="upload-zone" for="images"><strong>選擇圖片或拖曳檔案</strong><input id="images" type="file" accept="image/jpeg,image/png" multiple></label><div id="image-previews" class="image-previews"></div></section>`}<section class="form-section"><h2><span>${edit ? "02" : "03"}</span>聯絡資料</h2><p class="section-desc">確認信與本次物件的專屬連結將寄至此 Email。</p><div class="form-grid">${field("submitterName", "填報人姓名", { required: true, value: v("submitterName") || v("memberName"), placeholder: "您的姓名" })}${field("submitterEmail", "Email", { required: true, type: "email", value: v("submitterEmail") || v("contact"), placeholder: "name@example.com" })}<div class="field span-2"><label class="checkbox-line"><input type="checkbox" name="onBehalf" id="onBehalf" ${edit?.onBehalf ? "checked" : ""}>我代其他人登錄這筆需求</label></div>${field("relationship", "與標的的關係（代登錄時必填）", { value: v("relationship"), placeholder: "例如：本人持有、受託處理、親友轉介", span: true })}</div><label class="checkbox-line"><input type="checkbox" id="shareConsent" name="shareConsent" required ${edit ? "checked" : ""}>我確認有權提供上述資料，同意由授權領導團隊用於媒合、引薦及後續聯繫，並寄送本次登錄確認信。物件不開放一般會員瀏覽。</label>${edit ? field("reason", "修改原因", { required: true, textarea: true }) : ""}<div id="form-error" class="notice error" role="alert" hidden></div><div id="form-progress" class="form-progress" role="status"></div></section><div class="form-actions"><span class="hint">請確認 Email 正確，以接收物件連結。</span><button class="btn primary" id="submit-case" type="submit">${edit ? "儲存修改" : "確認資料並送出"} →</button></div></div><aside class="form-aside"><div class="panel"><h3>登錄後會怎麼處理？</h3><p class="hint">領導團隊會盤點需求，尋找合適資源協助媒合與引薦。如需補充資料，會依您留下的 Email 聯繫。</p><div class="divider"></div><h3>查看自己的物件</h3><p class="hint">送出後，請由確認信中的專屬連結查看本次登錄內容。連結請妥善保管。</p></div></aside></div></form>`,
     );
     renderPreviews();
     const zone = $(".upload-zone");
@@ -309,8 +302,10 @@
     const fd = new FormData(form);
     return {
       title: fd.get("title").trim(),
-      memberId: fd.get("memberId"),
-      contact: fd.get("contact").trim(),
+      memberId: state.editing?.memberId || "",
+      submitterName: fd.get("submitterName").trim(),
+      submitterEmail: fd.get("submitterEmail").trim(),
+      contact: fd.get("submitterEmail").trim(),
       propertyType: fd.get("propertyType"),
       city: fd.get("city"),
       district: fd.get("district").trim(),
@@ -318,7 +313,7 @@
       categories: fd.getAll("categories"),
       description: fd.get("description").trim(),
       helpNeeded: fd.get("helpNeeded").trim(),
-      summary: fd.get("summary").trim(),
+      summary: state.editing?.summary || "",
       onBehalf: fd.has("onBehalf"),
       relationship: fd.get("relationship").trim(),
       shareConsent: fd.has("shareConsent"),
@@ -345,7 +340,7 @@
   function openConfirm(p) {
     openModal(
       "送出前，確認一下",
-      `<div class="eyebrow">REQUEST PREVIEW</div><h2 class="detail-title">${esc(p.title)}</h2><div class="row wrap">${p.categories.map((c) => `<span class="tag wine">${esc(c)}</span>`).join("")}</div><dl class="detail-meta"><div><dt>標的地區</dt><dd>${esc(p.city + " " + p.district)}</dd></div><div><dt>圖片</dt><dd>${state.files.length} 張</dd></div></dl><h3>希望會內協助</h3><p class="summary-text">${esc(p.helpNeeded)}</p><p class="notice">送出後先由九長審核，尚未發布前不開放其他會員查看。</p><div class="row wrap"><button class="btn" data-action="close-modal">返回修改</button><button class="btn primary" id="confirm-submit">確認送出 →</button></div>`,
+      `<div class="eyebrow">REQUEST PREVIEW</div><h2 class="detail-title">${esc(p.title)}</h2><div class="row wrap">${p.categories.map((c) => `<span class="tag wine">${esc(c)}</span>`).join("")}</div><dl class="detail-meta"><div><dt>標的地區</dt><dd>${esc(p.city + " " + p.district)}</dd></div><div><dt>圖片</dt><dd>${state.files.length} 張</dd></div></dl><h3>希望會內協助</h3><p class="summary-text">${esc(p.helpNeeded)}</p><p class="notice">資料只供授權領導團隊媒合與引薦，不對一般會員公開。</p><div class="row wrap"><button class="btn" data-action="close-modal">返回修改</button><button class="btn primary" id="confirm-submit">確認送出 →</button></div>`,
     );
     $("#confirm-submit").onclick = async () => {
       closeModal();
@@ -410,11 +405,25 @@
         receiptToken: state.submission.receiptToken,
       });
       const id = state.submission.id;
+      const submitted = result.case || {
+        id,
+        title: payload.title,
+        submitterName: payload.submitterName,
+        submitterEmail: payload.submitterEmail,
+      };
+      const receiptUrl = safeReceiptUrl(result.receiptUrl);
+      const emailMessage =
+        result.emailStatus === "sent"
+          ? `確認信已寄至 ${payload.submitterEmail}，信中包含這筆物件的專屬連結。`
+          : result.emailStatus === "demo_not_sent" ||
+              result.emailStatus === "local_preview"
+            ? "目前為示範環境，不會寄出真實 Email；可使用下方連結查看本次登錄。"
+            : "需求已保存，但確認信尚未寄出。請先保存下方連結或案件編號，必要時聯絡資訊組。";
       state.submission = null;
       state.files = [];
       state.view = "success";
       shell(
-        `<section class="panel success-panel"><div class="success-icon">✓</div><div class="eyebrow">REQUEST RECEIVED</div><h1>需求已送出，謝謝您的信任。</h1><p class="muted">案件正等待九長審核。發布後，會內夥伴就能看到並提供協助。</p><div class="receipt">案件編號：${esc(id)}</div><p class="hint">請保存案件編號。需要補充、修改或撤回時，將編號提供給資訊組。</p><div class="row wrap" style="justify-content:center"><button class="btn" data-view="cases">查看會內案件</button><button class="btn primary" data-view="new">再提出一筆需求</button></div></section>`,
+        `<section class="panel success-panel"><div class="success-icon">✓</div><h1>需求已登錄</h1><p class="muted">領導團隊將協助盤點、媒合與引薦。</p><dl class="detail-meta"><div><dt>物件</dt><dd>${esc(submitted.title)}</dd></div><div><dt>填報人</dt><dd>${esc(submitted.submitterName)}</dd></div><div><dt>Email</dt><dd>${esc(submitted.submitterEmail)}</dd></div><div><dt>案件編號</dt><dd>${esc(id)}</dd></div></dl><p class="notice ${result.emailStatus === "sent" ? "info" : ""}">${esc(emailMessage)}</p><div class="row wrap" style="justify-content:center">${receiptUrl ? `<a class="btn" href="${esc(receiptUrl)}" rel="noreferrer">查看本次登錄</a>` : ""}<button class="btn primary" data-view="new">再登錄一筆</button></div></section>`,
       );
     } catch (e) {
       $("#form-error").textContent =
@@ -454,10 +463,15 @@
     });
   }
   async function loadCases() {
+    if (!staff()) {
+      state.cases = [];
+      return;
+    }
     const data = await api("listCases", {});
     state.cases = data.cases || [];
   }
   async function navigate(view) {
+    if (!staff() && !["new", "success", "receipt"].includes(view)) view = "new";
     if (state.busy) return;
     if (state.submission && view !== "new") {
       if (
@@ -510,6 +524,10 @@
     if (lastFocus?.isConnected) lastFocus.focus();
   }
   async function showCase(id) {
+    if (!staff()) {
+      toast("僅限授權領導團隊查看案件。", true);
+      return;
+    }
     openModal(
       "案件詳情",
       '<div class="skeleton"></div><p class="hint">正在讀取案件…</p>',
@@ -543,7 +561,7 @@
           )
           .join(
             "",
-          )}<section class="detail-section"><h3>相關圖片 <span class="hint">${c.images?.length || 0} 張</span></h3>${c.images?.length ? `<div class="detail-images">${c.images.map((im) => `<div class="detail-image"><img data-image="${esc(im.id)}" alt="${esc(im.fileName || "物件圖片")}">${staff() ? `<label class="checkbox-line"><input class="approve-image" type="checkbox" value="${esc(im.id)}" ${im.approved !== false ? "checked" : ""}>核准會內分享</label>` : ""}</div>`).join("")}</div>` : '<p class="hint">此案件未提供圖片。</p>'}</section><div class="row wrap"><button class="btn small" data-action="download-case">↓ 完整案件資料</button>${c.images?.length ? '<button class="btn small" data-action="download-images">↓ 原圖 ZIP</button>' : ""}</div>${staff() ? `<section class="review-panel"><h3>九長審核與協作盤點</h3><p class="hint">摘要及核准圖片發布後，會員可查看與下載；內部備註不對會員顯示。</p>${field("review-summary", "會內分享摘要", { textarea: true, value: c.summary || c.helpNeeded })}${field("review-notes", "內部盤點備註", { textarea: true, value: "", placeholder: "可協助事項、後續窗口與下一步（僅後臺可見）" })}<div id="review-error" class="notice error" role="alert" hidden></div>${(c.internalNotes || []).length ? '<div class="hint">' + c.internalNotes.map((n) => "<p><strong>" + esc(n.actor) + " · " + date(n.at) + "</strong><br>" + esc(n.text) + "</p>").join("") + "</div>" : ""}<div class="review-actions">${["pending", "needs_info"].includes(c.status) ? '<button class="btn primary" data-action="publish">核准並發布</button><button class="btn" data-action="needs-info">要求補充資料</button>' : ""}<button class="btn" data-action="save-note">儲存盤點備註</button></div>${info() ? `<div class="divider"></div><h3>資訊組案件管理</h3>${field("change-reason", "異動原因", { placeholder: "修改、撤回、失效及封存時必填" })}<div class="review-actions"><button class="btn small" data-action="edit-case">修改內容</button><button class="btn small" data-action="withdraw">撤回</button><button class="btn small" data-action="expire">標記失效</button><button class="btn small danger" data-action="archive">封存案件</button></div>` : ""}</section>` : ""}`;
+          )}<section class="detail-section"><h3>相關圖片 <span class="hint">${c.images?.length || 0} 張</span></h3>${c.images?.length ? `<div class="detail-images">${c.images.map((im) => `<div class="detail-image"><img data-image="${esc(im.id)}" alt="${esc(im.fileName || "物件圖片")}">${staff() ? `<label class="checkbox-line"><input class="approve-image" type="checkbox" value="${esc(im.id)}" ${im.approved !== false ? "checked" : ""}>供領導團隊查看</label>` : ""}</div>`).join("")}</div>` : '<p class="hint">此案件未提供圖片。</p>'}</section><div class="row wrap"><button class="btn small" data-action="download-case">↓ 完整案件資料</button>${c.images?.length ? '<button class="btn small" data-action="download-images">↓ 原圖 ZIP</button>' : ""}</div>${staff() ? `<section class="review-panel"><h3>媒合與引薦紀錄</h3><p class="hint">以下內容僅供授權領導團隊查看。</p>${field("review-summary", "需求摘要", { textarea: true, value: c.summary || c.helpNeeded })}${field("review-notes", "內部盤點備註", { textarea: true, value: "", placeholder: "媒合對象、引薦進度、後續窗口與下一步" })}<div id="review-error" class="notice error" role="alert" hidden></div>${(c.internalNotes || []).length ? '<div class="hint">' + c.internalNotes.map((n) => "<p><strong>" + esc(n.actor) + " · " + date(n.at) + "</strong><br>" + esc(n.text) + "</p>").join("") + "</div>" : ""}<div class="review-actions">${["pending", "needs_info"].includes(c.status) ? '<button class="btn primary" data-action="publish">完成評估</button><button class="btn" data-action="needs-info">要求補充資料</button>' : ""}<button class="btn" data-action="save-note">儲存盤點備註</button></div>${info() ? `<div class="divider"></div><h3>資訊組案件管理</h3>${field("change-reason", "異動原因", { placeholder: "修改、撤回、失效及封存時必填" })}<div class="review-actions"><button class="btn small" data-action="edit-case">修改內容</button><button class="btn small" data-action="withdraw">撤回</button><button class="btn small" data-action="expire">標記失效</button><button class="btn small danger" data-action="archive">封存案件</button></div>` : ""}</section>` : ""}`;
       hydrateImages($(".modal-body"));
     } catch (e) {
       $(".modal-body").innerHTML =
@@ -578,6 +596,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
   function downloadCase() {
+    if (!staff()) return;
     const c = state.detail;
     const out = {
       案件編號: c.id,
@@ -680,7 +699,7 @@
     const summary = $("#review-summary").value.trim(),
       notes = $("#review-notes").value.trim();
     if (decision === "publish" && !summary) {
-      toast("發布前請填寫會內摘要。", true);
+      toast("請先填寫需求摘要。", true);
       return;
     }
     await api("reviewCase", {
@@ -690,11 +709,7 @@
       notes,
       approvedImageIds: $$(".approve-image:checked").map((x) => x.value),
     });
-    toast(
-      decision === "publish"
-        ? "案件已發布，會員現在可以查看。"
-        : "已標記為待補充資料。",
-    );
+    toast(decision === "publish" ? "需求已完成評估。" : "已標記為待補充資料。");
     closeModal();
     await navigate(state.view);
   }
@@ -732,7 +747,7 @@
         try {
           const fd = new FormData(f);
           const data = await api("login", {
-            mode: state.loginMode,
+            mode: "admin",
             username: fd.get("username") || "",
             password: fd.get("password"),
           });
@@ -763,17 +778,6 @@
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("button,[data-view],[data-case]");
     if (!b) return;
-    if (b.dataset.demoRole) {
-      const data = await api("login", {
-        mode: "review",
-        role: b.dataset.demoRole,
-      });
-      state.token = data.token;
-      state.user = data;
-      sessionStorage.setItem(sessionKey, data.token);
-      await navigate(b.dataset.demoRole === "member" ? "overview" : "review");
-      return;
-    }
     if (b.dataset.loginMode) {
       state.loginMode = b.dataset.loginMode;
       renderLogin();
@@ -793,6 +797,18 @@
       return;
     }
     const action = b.dataset.action;
+    if (action === "google-login") {
+      try {
+        const result = await api("googleLogin", {});
+        state.token = result.token;
+        state.user = result;
+        sessionStorage.setItem(sessionKey, result.token);
+        await boot();
+      } catch (error) {
+        renderLogin(error.message);
+      }
+      return;
+    }
     if (action === "reset-demo") {
       if (
         confirm(
@@ -951,37 +967,127 @@
       e.returnValue = "";
     }
   });
+  function safeReceiptUrl(value) {
+    if (!value) return "";
+    try {
+      const u = new URL(value, location.href);
+      if (!["https:", "http:"].includes(u.protocol)) return "";
+      if (u.origin === location.origin) return u.href;
+      if (
+        u.origin === "https://script.google.com" &&
+        /^\/macros\/s\/[^/]+\/exec$/.test(u.pathname)
+      )
+        return u.href;
+      return "";
+    } catch {
+      return "";
+    }
+  }
+  async function renderReceipt(token) {
+    state.view = "receipt";
+    state.user = null;
+    shell('<div class="panel"><p>正在讀取本次登錄…</p></div>');
+    try {
+      const data = await api("getReceipt", { receiptToken: token });
+      const c = data.case || data;
+      shell(
+        `${pageHead("", "本次需求登錄", "此連結只供查看本次填報內容，請妥善保管。")}<article class="panel receipt-detail"><h2>${esc(c.title)}</h2><div class="row wrap">${(c.categories || []).map((x) => `<span class="tag wine">${esc(x)}</span>`).join("")}</div><dl class="detail-meta">${[
+          ["填報人", c.submitterName || c.memberName],
+          ["Email", c.submitterEmail || c.contact],
+          ["案件編號", c.id],
+          ["標的類型", c.propertyType],
+          ["地區", [c.city, c.district].filter(Boolean).join(" ")],
+          ["詳細位置", c.location || "未提供"],
+        ]
+          .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`)
+          .join("")}</dl>${[
+          ["現況與需求", c.description],
+          ["希望協助", c.helpNeeded],
+        ]
+          .map(
+            ([h, t]) =>
+              `<section class="detail-section"><h3>${h}</h3><p class="summary-text">${esc(t)}</p></section>`,
+          )
+          .join(
+            "",
+          )}${c.images?.length ? `<section class="detail-section"><h3>本次上傳圖片</h3><div class="detail-images">${c.images.map((im) => `<div class="detail-image"><img data-receipt-image="${esc(im.id)}" alt="${esc(im.fileName || "物件圖片")}"></div>`).join("")}</div></section>` : ""}<p class="hint">如需補充、修改或撤回，請將案件編號提供給資訊組。</p><a class="btn" href="https://hua-urban.com/">回華都更首頁</a></article>`,
+      );
+      for (const node of $$("[data-receipt-image]")) {
+        try {
+          const image = await api("getReceiptImage", {
+            receiptToken: token,
+            id: node.dataset.receiptImage,
+            original: false,
+          });
+          node.src = `data:${image.mimeType};base64,${image.base64}`;
+        } catch {
+          node.alt = "圖片目前無法載入";
+        }
+      }
+    } catch (error) {
+      shell(
+        `<section class="panel"><h1>無法開啟此物件</h1><p class="notice error">${esc(error.message)}</p><p class="hint">請確認使用確認信中的完整連結，或聯絡資訊組。</p></section>`,
+      );
+    }
+  }
   async function boot() {
-    if (reviewAdapter && !state.token) {
-      const login = await api("login", { mode: "review", role: "member" });
-      state.token = login.token;
-      state.user = login;
-      sessionStorage.setItem(sessionKey, login.token);
+    const rawReceipt =
+      [
+        document.body.dataset.receiptToken,
+        new URLSearchParams(location.hash.slice(1)).get("receipt"),
+      ].find((value) => /^[A-Za-z0-9_-]{32,128}$/.test(value || "")) || "";
+    if (/^[A-Za-z0-9_-]{32,128}$/.test(rawReceipt)) {
+      state.receiptToken = rawReceipt;
+      await renderReceipt(rawReceipt);
+      return;
     }
     if (!gas && !reviewAdapter) {
       try {
         const h = await fetch("/api/health").then((r) => r.json());
-        state.environment = h.data?.environment || h.environment || "local";
+        state.environment = h.data?.environment || "local";
       } catch {}
     }
-    if (!state.token) {
-      renderLogin();
-      return;
+    if (adminEntry && !state.token) {
+      if (gas) {
+        try {
+          const data = await api("googleLogin", {});
+          state.token = data.token;
+          state.user = data;
+          sessionStorage.setItem(sessionKey, data.token);
+        } catch (error) {
+          renderLogin(error.message);
+          return;
+        }
+      } else {
+        renderLogin(
+          reviewAdapter ? "請由官網後臺使用已授權的 Google 帳戶登入。" : "",
+        );
+        return;
+      }
+    }
+    if (!adminEntry && !state.token) {
+      const data = await api("startSubmission", {});
+      state.token = data.token;
+      state.user = data;
+      sessionStorage.setItem(sessionKey, data.token);
     }
     try {
       const data = await api("bootstrap");
       state.user = { ...state.user, ...data.user };
-      state.members = data.members || [];
       state.environment = data.environment || state.environment;
-      await navigate("overview");
-    } catch {
+      state.members = data.members || [];
+      await navigate(staff() ? "review" : "new");
+    } catch (error) {
       state.token = "";
       sessionStorage.removeItem(sessionKey);
-      renderLogin("登入已過期，請重新登入。");
+      if (adminEntry) {
+        renderLogin(error.message);
+      } else throw error;
     }
   }
   boot().catch((error) => {
-    $("#app").innerHTML = `<main id="main" class="loading-page"><div class="brand-mark">華</div><h1 style="font-size:22px">目前無法開啟平台</h1><p class="notice error">${esc(error.message || "請確認瀏覽器允許儲存資料，或改用一般瀏覽模式後重試。")}</p><button class="btn" id="retry-start">重新載入</button></main>`;
+    $("#app").innerHTML =
+      `<main id="main" class="loading-page"><div class="brand-mark">華</div><h1 style="font-size:22px">目前無法開啟平台</h1><p class="notice error">${esc(error.message || "請確認瀏覽器允許儲存資料，或改用一般瀏覽模式後重試。")}</p><button class="btn" id="retry-start">重新載入</button></main>`;
     $("#retry-start").onclick = () => location.reload();
   });
 })();
