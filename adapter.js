@@ -6,10 +6,22 @@
 
   const DB_NAME = "huadu-public-intake-v2";
   const STORE_NAME = "state";
+  const SESSION_KEY = "huadu-public-intake-v2:submission-token";
   const CATEGORIES = ["整合", "出售", "出租", "貸款活化"];
   const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
   const MAX_IMAGES = 15;
   const sessions = new Set();
+  const isSubmissionToken = (token) =>
+    typeof token === "string" &&
+    /^submission-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
+  try {
+    const savedToken = window.sessionStorage?.getItem(SESSION_KEY);
+    if (isSubmissionToken(savedToken)) sessions.add(savedToken);
+    else if (savedToken) window.sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Private browsing or storage policy may disable sessionStorage; this
+    // browser-only demo can still work until the page is closed or reloaded.
+  }
   const uid = () => crypto.randomUUID();
   const now = () => new Date().toISOString();
   const clean = (value, max = 2000) =>
@@ -254,6 +266,11 @@
       await loadState();
       const sessionToken = `submission-${uid()}`;
       sessions.add(sessionToken);
+      try {
+        window.sessionStorage?.setItem(SESSION_KEY, sessionToken);
+      } catch {
+        // Keep the current in-memory submission usable if storage is disabled.
+      }
       return {
         token: sessionToken,
         role: "member",
@@ -276,7 +293,12 @@
 
     const state = await loadState();
     if (action === "getReceipt") {
-      const item = findCase(state, payload.id);
+      const item = state.cases.find(
+        (candidate) => candidate.readReceiptToken === payload.receiptToken,
+      );
+      if (!item) fail("此筆收件憑證無效", "FORBIDDEN");
+      if (payload.id && payload.id !== item.id)
+        fail("此筆收件憑證無效", "FORBIDDEN");
       requireReadAccess(item, payload);
       return { case: caseView(state, item) };
     }
