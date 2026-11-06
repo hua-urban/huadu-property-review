@@ -111,6 +111,10 @@
   function validateSubmission(payload) {
     const submitterName = required(payload, "submitterName", 120);
     const submitterEmail = validateEmail(payload.submitterEmail);
+    const phoneValue = payload.submitterPhone;
+    if (phoneValue != null && (typeof phoneValue !== "string" || phoneValue.length > 40 || /[\r\n]/.test(phoneValue))) fail("請填寫有效手機號碼");
+    const submitterPhone = (phoneValue || "").trim();
+    if (submitterPhone && (!/^[+0-9 ()#-]+$/.test(submitterPhone) || submitterPhone.replace(/\D/g, "").length < 6)) fail("請填寫有效手機號碼");
     if (!["房屋", "土地", "其他"].includes(payload.propertyType))
       fail("請選擇有效物件類型");
     if (
@@ -127,6 +131,7 @@
       title: required(payload, "title", 120),
       submitterName,
       submitterEmail,
+      submitterPhone,
       // `contact` is retained as a compatibility alias for the submitter email.
       contact: submitterEmail,
       memberId: clean(payload.memberId, 100),
@@ -245,6 +250,7 @@
         title: item.title,
         submitterName: item.submitterName,
         submitterEmail: item.submitterEmail,
+        submitterPhone: item.submitterPhone || "",
         status: item.status,
       },
       emailStatus: "demo_not_sent",
