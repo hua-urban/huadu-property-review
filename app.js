@@ -113,8 +113,10 @@
     }
     return result.data;
   }
+  const brandIcon = reviewAdapter ? "brand/icon-512.png" : "https://hua-urban.com/property-platform/brand/icon-512.png";
+  function brandMark() { return `<img class="brand-mark brand-icon" src="${brandIcon}" alt="都更">`; }
   function brand() {
-    return '<div class="brand"><span class="brand-mark">華</span><div><strong>華都更</strong><small>PROPERTY COLLABORATION</small></div></div>';
+    return `<div class="brand">${brandMark()}<div><strong>華都更</strong><small>PROPERTY COLLABORATION</small></div></div>`;
   }
   function renderLogin(error = "") {
     document.title = "領導團隊登入｜華都更";
@@ -1091,7 +1093,7 @@
   }
   boot().catch((error) => {
     $("#app").innerHTML =
-      `<main id="main" class="loading-page"><div class="brand-mark">華</div><h1 style="font-size:22px">目前無法開啟平台</h1><p class="notice error">${esc(error.message || "請確認瀏覽器允許儲存資料，或改用一般瀏覽模式後重試。")}</p><button class="btn" id="retry-start">重新載入</button></main>`;
+      `<main id="main" class="loading-page">${brandMark()}<h1 style="font-size:22px">目前無法開啟平台</h1><p class="notice error">${esc(error.message || "請確認瀏覽器允許儲存資料，或改用一般瀏覽模式後重試。")}</p><button class="btn" id="retry-start">重新載入</button></main>`;
     $("#retry-start").onclick = () => location.reload();
   });
 })();

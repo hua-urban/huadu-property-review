@@ -1609,3 +1609,5 @@ td strong {
     padding: 25px;
   }
 }
+
+.brand-icon { object-fit: contain; flex-shrink: 0; border-radius: 10px; width: 52px; height: 52px; background: transparent; }
